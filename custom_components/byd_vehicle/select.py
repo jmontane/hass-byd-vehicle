@@ -1,5 +1,9 @@
 """Select entities for BYD Vehicle seat climate control."""
 
+# Pylint (v4+) can mis-infer dataclass-generated __init__ signatures for entity
+# descriptions, causing false-positive E1123 errors.
+# pylint: disable=unexpected-keyword-arg
+
 from __future__ import annotations
 
 import logging
@@ -198,7 +202,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class BydSeatClimateSelect(CoordinatorEntity, SelectEntity):
+class BydSeatClimateSelect(CoordinatorEntity[BydDataUpdateCoordinator], SelectEntity):
     """Select entity for a single seat heating/ventilation level."""
 
     _attr_has_entity_name = True
@@ -217,7 +221,9 @@ class BydSeatClimateSelect(CoordinatorEntity, SelectEntity):
         """Initialize the select entity."""
         super().__init__(coordinator)
         self.entity_description = description
-        self._attr_name = description.name
+        self._attr_name = (
+            description.name if isinstance(description.name, str) else None
+        )
         self._api = api
         self._vin = vin
         self._vehicle = vehicle
@@ -243,10 +249,7 @@ class BydSeatClimateSelect(CoordinatorEntity, SelectEntity):
             return False
         if self._vin not in self.coordinator.data.get("vehicles", {}):
             return False
-        return self._api.is_remote_command_supported(
-            self._vin,
-            f"seat_climate_{self.entity_description.key}",
-        )
+        return True
 
     @property
     def current_option(self) -> str | None:
@@ -309,12 +312,7 @@ class BydSeatClimateSelect(CoordinatorEntity, SelectEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        attrs: dict[str, Any] = {"vin": self._vin}
-        cmd = f"seat_climate_{self.entity_description.key}"
-        last_result = self._api.get_last_remote_result(self._vin, cmd)
-        if last_result:
-            attrs["last_remote_result"] = last_result
-        return attrs
+        return {"vin": self._vin}
 
     @property
     def device_info(self) -> DeviceInfo:

@@ -47,7 +47,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class BydClimate(CoordinatorEntity, ClimateEntity):
+class BydClimate(CoordinatorEntity[BydDataUpdateCoordinator], ClimateEntity):
     """Representation of BYD climate control."""
 
     _BYD_SCALE_MIN = 1
@@ -142,7 +142,7 @@ class BydClimate(CoordinatorEntity, ClimateEntity):
             return False
         if self._vin not in self.coordinator.data.get("vehicles", {}):
             return False
-        return self._api.is_remote_command_supported(self._vin, "start_climate")
+        return True
 
     @property
     def hvac_mode(self) -> HVACMode:
@@ -221,6 +221,9 @@ class BydClimate(CoordinatorEntity, ClimateEntity):
         self._last_mode = hvac_mode
         self._command_pending = True
         self.async_write_ha_state()
+
+        # Refresh coordinator so the car-on switch (and HVAC snapshot) updates quickly.
+        await self.coordinator.async_force_refresh()
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set target temperature."""
@@ -340,11 +343,6 @@ class BydClimate(CoordinatorEntity, ClimateEntity):
             attrs["rapid_cooling"] = hvac.rapid_decrease_temp_state
         if self._last_command:
             attrs["last_remote_command"] = self._last_command
-            last_result = self._api.get_last_remote_result(
-                self._vin, self._last_command
-            )
-            if last_result:
-                attrs["last_remote_result"] = last_result
         return attrs
 
     @property

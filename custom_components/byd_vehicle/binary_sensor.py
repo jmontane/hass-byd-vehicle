@@ -1,5 +1,9 @@
 """Binary sensors for BYD Vehicle."""
 
+# Pylint (v4+) can mis-infer dataclass-generated __init__ signatures for entity
+# descriptions, causing false-positive E1123 errors.
+# pylint: disable=unexpected-keyword-arg
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -314,7 +318,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class BydBinarySensor(CoordinatorEntity, BinarySensorEntity):
+class BydBinarySensor(CoordinatorEntity[BydDataUpdateCoordinator], BinarySensorEntity):
     """Representation of a BYD vehicle binary sensor."""
 
     _attr_has_entity_name = True
@@ -330,7 +334,9 @@ class BydBinarySensor(CoordinatorEntity, BinarySensorEntity):
         """Initialize the binary sensor."""
         super().__init__(coordinator)
         self.entity_description = description
-        self._attr_name = description.name
+        self._attr_name = (
+            description.name if isinstance(description.name, str) else None
+        )
         self._vin = vin
         self._vehicle = vehicle
         self._attr_unique_id = f"{vin}_{description.source}_{description.key}"
